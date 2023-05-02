@@ -319,7 +319,7 @@ def main():
     config = BertConfig.from_pretrained('bert-base-cased')
     bert_layers = model.bert.encoder.layer
     from transformers.models.bert.modeling_bert import BertAttention, BertSelfOutput
-    from New_attention import BertSelfAttention_new_1, BertSelfAttention_new_not_1
+    from New_attention_counterpart import BertSelfAttention_new_1, BertSelfAttention_new_not_1
     class CustomBertAttention(BertAttention):
         def __init__(self, config, position_embedding_type="absolute"):
             super().__init__(config)
