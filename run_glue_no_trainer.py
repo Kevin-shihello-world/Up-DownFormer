@@ -319,7 +319,7 @@ def main():
     config = BertConfig.from_pretrained('bert-base-cased')
     bert_layers = model.bert.encoder.layer
     from transformers.models.bert.modeling_bert import BertAttention, BertSelfOutput
-    from New_attention_counterpart import BertSelfAttention_new_1, BertSelfAttention_new_not_1
+    from New_attention_counterpart import BertSelfAttention_new_1, BertSelfAttention_new_not_1, BertSelfAttention_new_lastlayer
     class CustomBertAttention(BertAttention):
         def __init__(self, config, position_embedding_type="absolute"):
             super().__init__(config)
@@ -376,6 +376,34 @@ def main():
             custom_output = attention_output
             outputs = (attention_output,) + self_outputs[1:]  # add attentions if we output the
             return outputs
+    class CustomBertAttention_lastlayer(BertAttention):
+        def __init__(self, config, position_embedding_type="absolute"):
+            super().__init__(config)
+            self.output = BertSelfOutput(config)
+            self.self = BertSelfAttention_new_lastlayer(config, position_embedding_type=position_embedding_type)
+
+        def forward(self,
+            hidden_states: torch.Tensor,
+            attention_mask: Optional[torch.FloatTensor] = None,
+            head_mask: Optional[torch.FloatTensor] = None,
+            encoder_hidden_states: Optional[torch.FloatTensor] = None,
+            encoder_attention_mask: Optional[torch.FloatTensor] = None,
+            past_key_value: Optional[Tuple[Tuple[torch.FloatTensor]]] = None,
+            output_attentions: Optional[bool] = False,
+        ) -> Tuple[torch.Tensor]:
+            self_outputs = self.self(
+            hidden_states,
+            attention_mask,
+            head_mask,
+            encoder_hidden_states,
+            encoder_attention_mask,
+            past_key_value,
+            output_attentions,
+        )
+            attention_output = self.output(self_outputs[0], hidden_states)
+            custom_output = attention_output
+            outputs = (attention_output,) + self_outputs[1:]  # add attentions if we output the
+            return outputs
         
         
     # 在每个注意力层后添加自定义层
@@ -389,8 +417,8 @@ def main():
         if i == 0:
             i += 1
             layer.attention = CustomBertAttention(config)
-        else:
-            layer.attention = CustomBertAttention_(config)
+        elif i == 12 or i == 11:
+            layer.attention = CustomBertAttention_lastlayer(config)
     # Preprocessing the datasets
     if args.task_name is not None:
         sentence1_key, sentence2_key = task_to_keys[args.task_name]
