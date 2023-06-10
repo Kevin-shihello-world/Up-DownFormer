@@ -25,7 +25,7 @@ class BertSelfAttention_new_not_1(nn.Module):
         self.nodefeats_reshaper = nn.AdaptiveAvgPool1d(128)
         self.edgefeats_reshaper_0 = nn.AdaptiveAvgPool1d(128*6)
         self.edgefeats_reshaper = nn.AdaptiveAvgPool1d(128*11)
-        self.edgefeats_user = nn.Linear(128*12, 128)
+        self.edgefeats_user = nn.Linear(128*2, 128)
         self.reshaper = nn.AdaptiveAvgPool2d((128, 128*12))
         self.edgefeats_user.weight = Parameter(self.reshaper(self.key.weight.t().unsqueeze(0) ).squeeze(0) )
         #self.nodesfeats_updater = nn.Linear(128*12, 128*12)
@@ -106,25 +106,23 @@ class BertSelfAttention_new_not_1(nn.Module):
         edgefeats_reshape_back_0 = nn.AdaptiveAvgPool1d(12*shape_1)
         edge_online_f_update = edgefeats_reshape_back_0(self.value(self.edgefeats_reshaper_0(edge_online_f_.reshape(shape_0, shape_1, 12*shape_1) ) ) )
         edge_online_f = edge_online_f + edge_online_f_update.reshape(shape_0, shape_1, shape_1, 12).permute(0, 3, 1, 2)
-        
-        edge_online_on__ = torch.cat((self.edgefeats_reshaper(edge_online_f_.reshape(shape_0, shape_1, 12*shape_1)), self.nodefeats_reshaper(hidden_states_)), dim = 2)
+
+        edge_online_on__ = torch.cat((edge_online_f, self.nodefeats_reshaper(hidden_states_)), dim = 2)
         edge_online_on_ = self.edgefeats_user(edge_online_on__)
-       #print("edge_online_on_:", edge_online_on_.shape)                 
+       #print("edge_online_on_:", edge_online_on_.shape)    
         edgefeats_reshape_back_1 = nn.AdaptiveAvgPool1d(shape_1)
         edge_online_on = edgefeats_reshape_back_1(edge_online_on_)#.reshape(shape_0, shape_1, shape_1)
        #print("edge_online_f:", edge_online_f.shape)
        #print("edge_online_on:", edge_online_on.shape)
         #edge_online_on = edge_online_on_.narrow(2, 0, shape_2)
         #print(edge_online_on.shape)
-        x_online = x_online + torch.matmul(edge_online_on, x_online)
-        x_online = self.key(x_online) + x_online
+        ##x_online = x_online + torch.matmul(edge_online_on, x_online)
+        x_online_updater = self.key(x_online)
+        x_online = x_online_updater@x + (1 - x_online_updater)@x_online
         x_online_1 = x_online
         
-        #hidden_states += self.query(hidden_states)
-        ##print("1:",x_online.shape)
-        
-        ##print("2:", x_online_1.shape)
-        norm = torch.sigmoid(torch.norm(hidden_states_, p=2, dim=2) )#.unsqueeze(0)
+        '''
+        ####norm = torch.sigmoid(torch.norm(hidden_states_, p=2, dim=2) )#.unsqueeze(0)
         ##print("3:", x_online_1.shape)
         shape_0 = hidden_states.shape[0]
         shape_1 = hidden_states.shape[1]
@@ -139,10 +137,11 @@ class BertSelfAttention_new_not_1(nn.Module):
         
         x_online = 1/2*(torch.matmul(torch.diag_embed(norm), hidden_states_) + x_online_1)
         outputs = 1/2*torch.squeeze(torch.matmul(torch.diag_embed(norm_1), x_online_1) + hidden_states_, 0)
+        ####'''
         
-
-        ####
-        outputs = (outputs, edge_online_c) if output_attentions else (outputs,)
+        x_updater = self.query(x)
+        x = x_updater@x_online + (1 - x_updater)@x
+        outputs = (x, edge_online_c) if output_attentions else (outputs,)
 
         if self.is_decoder:
             outputs = outputs + (past_key_value,)
@@ -165,7 +164,7 @@ class BertSelfAttention_new_lastlayer(nn.Module):
         self.nodefeats_reshaper = nn.AdaptiveAvgPool1d(128)
         self.edgefeats_reshaper_0 = nn.AdaptiveAvgPool1d(128*6)
         self.edgefeats_reshaper = nn.AdaptiveAvgPool1d(128*11)
-        self.edgefeats_user = nn.Linear(128*12, 128)
+        self.edgefeats_user = nn.Linear(128*2, 128)
         self.reshaper = nn.AdaptiveAvgPool2d((128, 128*12))
         self.edgefeats_user.weight = Parameter(self.reshaper(self.key.weight.t().unsqueeze(0) ).squeeze(0) )
         #self.nodesfeats_updater = nn.Linear(128*12, 128*12)
@@ -247,7 +246,7 @@ class BertSelfAttention_new_lastlayer(nn.Module):
         edge_online_f_update = edgefeats_reshape_back_0(self.value(self.edgefeats_reshaper_0(edge_online_f_.reshape(shape_0, shape_1, 12*shape_1) ) ) )
         edge_online_f = edge_online_f + edge_online_f_update.reshape(shape_0, shape_1, shape_1, 12).permute(0, 3, 1, 2)
         
-        edge_online_on__ = torch.cat((self.edgefeats_reshaper(edge_online_f_.reshape(shape_0, shape_1, 12*shape_1)), self.nodefeats_reshaper(hidden_states_)), dim = 2)
+        edge_online_on__ = torch.cat((edge_online_f[0], self.nodefeats_reshaper(hidden_states_)), dim = 2)
         edge_online_on_ = self.edgefeats_user(edge_online_on__)
        #print("edge_online_on_:", edge_online_on_.shape)                 
         edgefeats_reshape_back_1 = nn.AdaptiveAvgPool1d(shape_1)
@@ -264,7 +263,7 @@ class BertSelfAttention_new_lastlayer(nn.Module):
         ##print("1:",x_online.shape)
         
         ##print("2:", x_online_1.shape)
-        norm = torch.sigmoid(torch.norm(hidden_states_, p=2, dim=2) )#.unsqueeze(0)
+        '''norm = torch.sigmoid(torch.norm(hidden_states_, p=2, dim=2) )#.unsqueeze(0)
         ##print("3:", x_online_1.shape)
         shape_0 = hidden_states.shape[0]
         shape_1 = hidden_states.shape[1]
@@ -278,11 +277,15 @@ class BertSelfAttention_new_lastlayer(nn.Module):
         norm_1 = torch.sigmoid(torch.norm(p2pattention, p=2, dim=2) )
         
         x_online = 1/2*(torch.matmul(torch.diag_embed(norm), hidden_states_) + x_online_1)
-        outputs = 1/2*torch.squeeze(torch.matmul(torch.diag_embed(norm_1), x_online_1) + hidden_states_, 0)
+        outputs = 1/2*torch.squeeze(torch.matmul(torch.diag_embed(norm_1), x_online_1) + hidden_states_, 0)'''
+        
         
 
         ####
-        outputs = (outputs, edge_online_c) if output_attentions else (outputs,)
+        x_updater = self.query(x)
+        x = x_updater@x_online + (1 - x_updater)@x
+        outputs = (x, edge_online_c) if output_attentions else (outputs,)
+        ##outputs = (outputs, edge_online_c) if output_attentions else (outputs,)
 
         if self.is_decoder:
             outputs = outputs + (past_key_value,)
@@ -433,7 +436,6 @@ class BertSelfAttention_new_1(nn.Module):
         if self.is_decoder:
             outputs = outputs + (past_key_value,)
         return outputs
-
 
 
 
